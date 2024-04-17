@@ -3,10 +3,13 @@
 #include <cstring>
 #include <iostream>
 #include <netdb.h>
+#include <ostream>
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#define PORT_NUM 4221
 
 int main(int argc, char **argv) {
   // You can use print statements as follows for debugging, they'll be visible
@@ -33,13 +36,15 @@ int main(int argc, char **argv) {
   struct sockaddr_in server_addr;
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr.s_addr = INADDR_ANY;
-  server_addr.sin_port = htons(4221);
+  server_addr.sin_port = htons(PORT_NUM);
 
   if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) !=
       0) {
     std::cerr << "Failed to bind to port 4221\n";
     return 1;
   }
+
+  std::cout << "Success Binding To Port: " << PORT_NUM << "\n";
 
   int connection_backlog = 5;
   if (listen(server_fd, connection_backlog) != 0) {
@@ -52,11 +57,17 @@ int main(int argc, char **argv) {
 
   std::cout << "Waiting for a client to connect...\n";
 
-  accept(server_fd, (struct sockaddr *)&client_addr,
-         (socklen_t *)&client_addr_len);
+  int client_socket = accept(server_fd, (struct sockaddr *)&client_addr,
+                             (socklen_t *)&client_addr_len);
+
   std::cout << "Client connected\n";
 
+  std::string okMsg = "HTTP/1.1 200 OK\r\n\r\n";
+  std::cout << "Sending Message\n";
+  send(client_socket, okMsg.c_str(), okMsg.size(), 0);
+
   close(server_fd);
+  close(client_socket);
 
   return 0;
 }
