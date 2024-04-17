@@ -1,15 +1,22 @@
+#include <algorithm>
 #include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <netdb.h>
 #include <ostream>
+#include <regex>
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #define PORT_NUM 4221
+#define SEPARARTOR "=================================================="
+
+std::string okMsg = "HTTP/1.1 200 OK\r\n\r\n";
+std::string notFoundMsg = "HTTP/1.1 404 Not Found\r\n\r\n";
+char requestBuffer[2048];
 
 int main(int argc, char **argv) {
   // You can use print statements as follows for debugging, they'll be visible
@@ -60,11 +67,28 @@ int main(int argc, char **argv) {
   int client_socket = accept(server_fd, (struct sockaddr *)&client_addr,
                              (socklen_t *)&client_addr_len);
 
-  std::cout << "Client connected\n";
+  std::string clientRequestFirstLine;
+  if (recv(client_socket, requestBuffer, sizeof(requestBuffer), 0) > 0) {
+    std::string clientRequestMessage = std::string(requestBuffer);
+    clientRequestFirstLine =
+        clientRequestMessage.substr(0, clientRequestMessage.find('\n'));
 
-  std::string okMsg = "HTTP/1.1 200 OK\r\n\r\n";
-  std::cout << "Sending Message\n";
-  send(client_socket, okMsg.c_str(), okMsg.size(), 0);
+    std::cout << "Got request\n\n" << clientRequestMessage << "\n";
+    std::cout << "First Line: " << clientRequestFirstLine << "\n";
+  }
+
+  // if clientRequestFirstLine not empty and
+  // not match path after first slash
+  std::regex firstPathQuery(R"(\s/\w\s*)");
+  std::smatch res;
+  std::regex_search(clientRequestFirstLine, res, firstPathQuery);
+  std::cout << res[0];
+
+  if (res[0].str().empty()) {
+    send(client_socket, okMsg.c_str(), okMsg.size(), 0);
+  } else {
+    send(client_socket, notFoundMsg.c_str(), notFoundMsg.size(), 0);
+  }
 
   close(server_fd);
   close(client_socket);
